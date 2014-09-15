@@ -1,7 +1,118 @@
-\section{ロボットモデリング}
+\section{幾何学関数と座標系}
 
  \subsection{数学関数}
  \input{irtmath-func}
 
  \subsection{幾何学関数}
   \input{irtgeo-func}
+
+ \subsection{coordinates classと変換行列の関係}
+%座標系と座標変換は、coordinates クラスで表現される。4*4 の同次行列表現
+%の代わりに、Euslisp 内で座標系は、高速性と一般性のために 3*3 の回転行
+%列と 3 次元位置ベクトルの組で表現される。
+
+\noindent
+変換行列Tとして以下のように表す．
+\[
+T = \begin{pmatrix}
+\mathbf{R}_T & \mathbf{p}_T \\
+\mathbf{0} & 1
+\end{pmatrix}
+\]
+$\mathbf{R}$は$3\times3$行列，$\mathbf{p}$は$3\times1$行列(eus内部処理
+では要素数3のfloat-vector)
+であって，
+coordinate classのスロットrotとposに対応する．
+
+\noindent
+coordinates classで以下のように$\mathbf{R}$と$\mathbf{p}$を取り出せる．
+
+\noindent
+(send T :rot) returns $\mathbf{R}_T$
+
+\noindent
+(send T :pos) returns $\mathbf{p}_T$
+
+\noindent
+(send T :rotate-vector $\mathbf{v}$) returns $\mathbf{R}_T \mathbf{v}$
+
+\noindent
+(send T :inverse-rotate-vector $\mathbf{v}$) returns $\mathbf{v} \mathbf{R}_T$
+
+%% send A :transform-vector \mathbf{v} // vec in local coordinates transform to world
+%% \mathbf{R}_A\mathbf{v} + \mathbf{p}_A
+
+%% send A :inverse-transform-vector \mathbf{v} // vec in world coordinates transform to local
+%% \mathbf{R}_A^{-1}\left( \mathbf{v} - \mathbf{p}_A \right)
+
+
+%% send A :transform B [ &optional (wrt :local) ]
+%% wrt == :local
+%% A <- AB
+
+%% wrt == :world
+%% A <- BA
+
+%% wrt == W (coordinates class)
+%% A <- \left( WBW \right)^{-1} A
+
+
+%% send T :inverse-transformation
+%% <- T^{-1} = \begin{pmatrix}
+%% \mathbf{R}_T^{-1} & -\mathbf{R}_T^{-1}\mathbf{p}_T \\ 
+%% \mathbf{0} & 1
+%% \end{pmatrix}
+
+%% send A :transformation B [ &optional (wrt :local) ]
+
+%% wrt == :local
+%% A^{-1}B
+
+%% wrt == :world
+%% BA^{-1}
+
+%% wrt == W (coordinates class)
+%% W^{-1}BA^{-1}W
+
+%% send A :newcoords R p
+%% \mathbf{R}_A <- R
+%% \mathbf{p}_A <- p
+
+
+%% send A :translate \mathbf{v} [ &optional (wrt :local) ]
+%% wrt == :local
+%% \mathbf{p}_{A} <- \mathbf{R}_{A}\mathbf{p}_{A} + \mathbf{v}
+
+%% wrt == :world
+%% \mathbf{p}_{A} <- \mathbf{p}_{A} + \mathbf{v}
+
+%% wrt == W (coordinates class)
+%% \mathbf{R}_{W} \mathbf{v} + \mathbf{p}_{A}
+
+
+%% send A :locate \mathbf{v} [ &optional (wrt :local) ]
+%% wrt == :local
+%% \mathbf{p}_{A} <- \mathbf{R}_{A} \mathbf{v} + \mathbf{p}_{A}
+
+%% wrt == :world
+%% \mathbf{p}_{A} <- \mathbf{v}
+
+%% wrt == W (coordinates class)
+%% \mathbf{p}_{A} <- \mathbf{W} \mathbf{v}
+
+
+%% send A :move-to B [ &optional (wrt :local) ]
+%% wrt == :local
+%% A <- AB
+
+%% wrt == :world
+%% A <- B
+
+%% wrt == W (coordinates class)
+%% A <- WB
+
+
+%% send A :rotate \theta axis [:local :world W]
+%% (rotation-matrix theta axis) wrl
+
+%% send A :orient \theta axis [:local :world W]
