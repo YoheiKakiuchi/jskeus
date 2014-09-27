@@ -100,6 +100,7 @@
   (:size-change
    "change width and height, this method does not change points data"
    (&optional wd ht)
+   "change width and height, this method does not change points data"
    (cond
     ((and wd ht)
      (setq width wd
@@ -481,6 +482,8 @@
    "transform points and normals with coords.\\\\
     if :create is true, return transformed point cloud and original point cloud does not change."
    (coords &key (create))
+   "transform points and normals with coords.\\\\
+    if :create is true, return transformed point cloud and original point cloud does not change."
    (let ((ret (if create (instance pointcloud :init) self)))
      (if create (send ret :copy-from self))
      (send (ret . view-coords) :transform
