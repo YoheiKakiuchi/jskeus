@@ -801,7 +801,7 @@
                     (flatten (send* self :convert-to-faces args)))))
      (send fs :transform (send self :worldcoords))
      fs))
-  (:set-offset (cds) ;; not checked
+  (:set-offset (cds &key (without-normal)) ;; not checked
    (let* ((zero (float-vector 0 0 0))
           (wpos (send cds :worldpos))
           (wrot (send cds :worldrot)))
@@ -810,7 +810,7 @@
              (nmat (cadr (assoc :normals minfo))))
          (user::c-coords-transform-vector
           wpos wrot vmat vmat)
-         (when nmat
+         (when (and nmat (not fix-normal))
            (user::c-coords-transform-vector
             zero wrot nmat nmat))))
      self))
