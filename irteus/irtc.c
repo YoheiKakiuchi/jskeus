@@ -840,6 +840,215 @@ pointer argv[];
   while(pc-->0) vpop();
   return (cons(ctx,rr,cons(ctx,ri,NIL)));};
 
+static inline int base64tobin (char c) {
+  if('A' <= c && c <= 'Z') return (c - 'A');
+  if('a' <= c && c <= 'z') return (c - 'a' + 26);
+  if('0' <= c && c <= '9') return (c - '0' + 52);
+  if(c == '+') return 62;
+  if(c == '/') return 63;
+  if(c == '=') return '=';
+  error(E_USER, (pointer)"invalid base64 character");
+}
+pointer CONVERT_BASE64(ctx,n,argv)
+register context *ctx;
+int n;
+pointer argv[];
+/* (convert-base64 dim-array type base_64_str) */
+{
+  pointer elm;
+  numunion nu;
+  int i;
+  int dim[ARRAYRANKLIMIT];
+  unsigned char *buffer;
+  int free_buffer = 0;
+  pointer entity;
+  pointer ret = NIL;
+  // argcheck
+  ckarg(3);
+  //consp(argv[0])
+  //keywordp(argv[1])
+  //stringp(argv[2])
+
+  for (i = 0; i < ARRAYRANKLIMIT; i++) dim[i] = 0;
+
+  int rank = 0;
+  unsigned long size = 1;
+
+  elm = argv[0];
+  while(elm != NIL) {
+    if( isint(elm->c.cons.car) ) {
+      dim[rank] = intval(elm->c.cons.car);
+      size *= dim[rank];
+      rank++;
+    }
+    elm = elm->c.cons.cdr;
+  }
+
+  elm = argv[1];
+  if (elm == K_FLOAT || elm == K_FLOAT32) {
+    entity = makefvector(size);
+#ifdef x86_64
+    buffer = malloc(sizeof(float) * size);
+    free_buffer = 1;
+#else
+    buffer = (unsigned char *) &(entity->c.fvec.fv[0]);
+#endif
+    size *= 4;
+  } else if (elm == K_DOUBLE) {
+    entity = makefvector(size);
+#ifdef x86_64
+    buffer = (unsigned char *) &(entity->c.fvec.fv[0]);
+#else
+    buffer = malloc(sizeof(double) * size);
+    free_buffer = 1;
+#endif
+    size *= 8;
+  } else if (elm == K_SHORT) {
+    entity = makeivector(size);
+    buffer = malloc(sizeof(short) * size);
+    free_buffer = 1;
+    size *= 2;
+  } else if (elm == K_INTEGER) {
+    entity = makeivector(size);
+#ifdef x86_64
+    buffer = malloc(sizeof(int) * size);
+    free_buffer = 1;
+#else
+    buffer = (unsigned char *) &(entity->c.ivec.iv[0]);
+#endif
+    size *= 4;
+  } else if (elm == K_LONG) {
+    entity = makeivector(size);
+#ifdef x86_64
+    buffer = (unsigned char *) &(entity->c.ivec.iv[0]);
+#else
+    buffer = malloc(sizeof(long long) * size);
+    free_buffer = 1;
+#endif
+    size *= 8;
+  } else if (elm = K_STRING) {
+    entity = makestring(size);
+    buffer = (unsigned char *) &(entity->c.str.char[0]);
+  } else {
+    error(E_USER, (pointer)"invalid binary element type");
+  }
+  vpush(entity);
+  if(rank == 1) {
+    // return vector
+    ret = entity;
+    vpop();
+    vpush(ret);
+  } else {
+    // make array
+    ret = alloc(vecsize(speval(ARRAY)->c.cls.vars), ELM_FIXED,
+                intval(speval(ARRAY)->c.cls.cix),
+                vecsize(speval(ARRAY)->c.cls.vars));
+    ret->c.ary.entity = entity;
+    vpop();
+    vpush(ret);
+    ret->c.ary.fillpointer = NIL;
+    ret->c.ary.rank = makeint(rank);
+    ret->c.ary.offset = makeint(0);
+    for (i = 0; i < ARRAYRANKLIMIT; i++) ret->c.ary.dim[i] = makeint(dim[i]);
+    ret->c.ary.plist = NIL;
+  }
+  int strsize = (size*8+5)/6;
+  strsize = ((strsize+3)/4)*4;
+
+  // read string
+  elm = argv[2];
+  int in_strsize = intval(elm->c.str.length);
+  char *ascstr = &(elm->c.str.chars[0]);
+  // strsize == in_strsize
+  // if(free_buffer) free(buffer);
+  // decode base64
+  {
+    int asc_cntr = 0;
+    int buf_cntr = 0;
+    int mode = 0;
+    int current_bin;
+    while (asc_cntr < strsize) {
+      int base64char = base64tobin(ascstr[asc_cntr++]);
+      if (base64char != 77) {
+        switch (mode) {
+        case 0:
+          current_bin = (base64char << 2);
+           break;
+        case 1:
+          current_bin |= (base64char >> 4);
+          buffer[buf_cntr++] = current_bin;
+          current_bin = (base64char & 0x0f) << 4;
+          break;
+        case 2:
+          current_bin |= (base64char >> 2);
+          buffer[buf_cntr++] = current_bin;
+          current_bin = (base64char & 0x03) << 6;
+          break;
+        case 3:
+          current_bin |= base64char;
+          buffer[buf_cntr++] = current_bin;
+          break;
+        }
+        mode = (mode+1) % 4;
+      }
+    }
+    if(mode > 0) buffer[buf_cntr++] = current_bin;
+  }
+
+  if (elm == K_FLOAT || elm == K_FLOAT32) {
+#ifdef x86_64
+    float *src = (float *)buffer;
+    eusfloat_t *dst = (eusfloat_t *)&(entity->c.fvec.fv[0]);
+    for (i = 0; i < size/4; i++) {
+      *dst++ = *src++;
+    }
+#else
+    // do nothing
+#endif
+  } else if (elm == K_DOUBLE) {
+#ifdef x86_64
+    // do nothing
+#else
+    double *src = (double *)buffer;
+    eusfloat_t *dst = (eusfloat_t *)&(entity->c.fvec.fv[0]);
+    for (i = 0; i < size/8; i++) {
+      *dst++ = *src++;
+    }
+#endif
+  } else if (elm == K_SHORT) {
+    short *src = (short *)buffer;
+    eusinteger_t *dst = (eusinteger_t *)&(entity->c.ivec.iv[0]);
+    for (i = 0; i < size/2; i++) {
+      *dst++ = *src++;
+    }
+  } else if (elm == K_INTEGER) {
+#ifdef x86_64
+    int *src = (int *)buffer;
+    eusinteger_t *dst = (eusinteger_t *)&(entity->c.ivec.iv[0]);
+    for (i = 0; i < size/4; i++) {
+      *dst++ = *src++;
+    }
+#else
+    // do nothing
+#endif
+  } else if (elm == K_LONG) {
+#ifdef x86_64
+    // do nothing
+#else
+    long long *src = (long long *)buffer;
+    eusinteger_t *dst = (eusinteger_t *)&(entity->c.ivec.iv[0]);
+    for (i = 0; i < size/8; i++) {
+      *dst++ = *src++;
+    }
+#endif
+  } else if (elm == K_STRING) {
+    // do nothing
+  }
+  if(free_buffer) free(buffer);
+
+  return vpop();
+}
+
 pointer ___irtc(ctx,n,argv, env)
 register context *ctx;
 int n;
@@ -858,7 +1067,7 @@ pointer env;
   defun(ctx,"PSEUDO-INVERSE2",mod,PSEUDO_INVERSE2);
   defun(ctx,"QL-DECOMPOSE",mod,QL_DECOMPOSE);
   defun(ctx,"QR-DECOMPOSE",mod,QR_DECOMPOSE);
-
+  defun(ctx,"DECODE-BASE64",mod,DECODE_BASE64);
   /* irteus-version */
   extern pointer QVERSION;
   pointer p, v = speval(QVERSION);
