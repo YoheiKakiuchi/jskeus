@@ -1165,8 +1165,8 @@ if flat option is true, use-flat-shader"
    (unless bbox
      (send self :calc-bounding-box))
    bbox)
-  (:make-pqpmodel ()
-   (let ((pqpmakemodel)
+  (:make-pqpmodel (&key (fat 0))
+   (let ((m (pqpmakemodel))
          v1 v2 v3 (id 0))
      (dolist (mesh mesh-list) ;; check triangle model
        (let ((tp (cadr (assoc :type mesh))))
