@@ -849,11 +849,11 @@ static inline int base64tobin (char c) {
   if(c == '=') return '=';
   error(E_USER, (pointer)"invalid base64 character");
 }
-pointer CONVERT_BASE64(ctx,n,argv)
+pointer DECODE_ARRAY_BASE64(ctx,n,argv)
 register context *ctx;
 int n;
 pointer argv[];
-/* (convert-base64 dim-array type base_64_str) */
+/* (decode-array-base64 dim-array type base_64_str) */
 {
   pointer elm;
   numunion nu;
@@ -865,10 +865,15 @@ pointer argv[];
   pointer ret = NIL;
   // argcheck
   ckarg(3);
-  //consp(argv[0])
-  //keywordp(argv[1])
-  //stringp(argv[2])
-
+  if(!iscons(argv[0])) {
+    error(E_NOLIST);
+  }
+  if(!issymbol(argv[1])) {
+    error(E_NOSYMBOL);
+  }
+  if(!isstring(argv[2])) {
+    error(E_NOSTRING);
+  }
   for (i = 0; i < ARRAYRANKLIMIT; i++) dim[i] = 0;
 
   int rank = 0;
@@ -927,8 +932,8 @@ pointer argv[];
 #endif
     size *= 8;
   } else if (elm = K_STRING) {
-    entity = makestring(size);
-    buffer = (unsigned char *) &(entity->c.str.char[0]);
+    entity = makebuffer(size);
+    buffer = (unsigned char *) &(entity->c.str.chars[0]);
   } else {
     error(E_USER, (pointer)"invalid binary element type");
   }
@@ -954,13 +959,16 @@ pointer argv[];
   }
   int strsize = (size*8+5)/6;
   strsize = ((strsize+3)/4)*4;
-
   // read string
-  elm = argv[2];
-  int in_strsize = intval(elm->c.str.length);
-  char *ascstr = &(elm->c.str.chars[0]);
-  // strsize == in_strsize
-  // if(free_buffer) free(buffer);
+  pointer elm_str = argv[2];
+  int in_strsize = intval(elm_str->c.str.length);
+  char *ascstr = &(elm_str->c.str.chars[0]);
+  if(strsize != in_strsize) {
+    vpop();
+    if(free_buffer) free(buffer);
+    // fprintf(stderr, "%d == %d\n", strsize, in_strsize);
+    error(E_USER, (pointer)"invalid string size");
+  }
   // decode base64
   {
     int asc_cntr = 0;
@@ -998,7 +1006,7 @@ pointer argv[];
   if (elm == K_FLOAT || elm == K_FLOAT32) {
 #ifdef x86_64
     float *src = (float *)buffer;
-    eusfloat_t *dst = (eusfloat_t *)&(entity->c.fvec.fv[0]);
+    eusfloat_t *dst = (eusfloat_t *) &(entity->c.fvec.fv[0]);
     for (i = 0; i < size/4; i++) {
       *dst++ = *src++;
     }
@@ -1010,21 +1018,21 @@ pointer argv[];
     // do nothing
 #else
     double *src = (double *)buffer;
-    eusfloat_t *dst = (eusfloat_t *)&(entity->c.fvec.fv[0]);
+    eusfloat_t *dst = (eusfloat_t *) &(entity->c.fvec.fv[0]);
     for (i = 0; i < size/8; i++) {
       *dst++ = *src++;
     }
 #endif
   } else if (elm == K_SHORT) {
     short *src = (short *)buffer;
-    eusinteger_t *dst = (eusinteger_t *)&(entity->c.ivec.iv[0]);
+    eusinteger_t *dst = (eusinteger_t *) &(entity->c.ivec.iv[0]);
     for (i = 0; i < size/2; i++) {
       *dst++ = *src++;
     }
   } else if (elm == K_INTEGER) {
 #ifdef x86_64
     int *src = (int *)buffer;
-    eusinteger_t *dst = (eusinteger_t *)&(entity->c.ivec.iv[0]);
+    eusinteger_t *dst = (eusinteger_t *) &(entity->c.ivec.iv[0]);
     for (i = 0; i < size/4; i++) {
       *dst++ = *src++;
     }
@@ -1036,7 +1044,7 @@ pointer argv[];
     // do nothing
 #else
     long long *src = (long long *)buffer;
-    eusinteger_t *dst = (eusinteger_t *)&(entity->c.ivec.iv[0]);
+    eusinteger_t *dst = (eusinteger_t *) &(entity->c.ivec.iv[0]);
     for (i = 0; i < size/8; i++) {
       *dst++ = *src++;
     }
@@ -1067,7 +1075,7 @@ pointer env;
   defun(ctx,"PSEUDO-INVERSE2",mod,PSEUDO_INVERSE2);
   defun(ctx,"QL-DECOMPOSE",mod,QL_DECOMPOSE);
   defun(ctx,"QR-DECOMPOSE",mod,QR_DECOMPOSE);
-  defun(ctx,"DECODE-BASE64",mod,DECODE_BASE64);
+  defun(ctx,"DECODE-ARRAY-BASE64",mod,DECODE_ARRAY_BASE64);
   /* irteus-version */
   extern pointer QVERSION;
   pointer p, v = speval(QVERSION);
