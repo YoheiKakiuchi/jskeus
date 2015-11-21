@@ -78,6 +78,7 @@
                    (:projection :newprojection
                     :view :viewpoint :view-direction :viewdistance
                     :yon :hither))
+          offscreen
           img-viewer pwidth pheight))
 (defmethod camera-model
   (:init
@@ -123,7 +124,8 @@
            :viewing (send self :viewing)
            :viewsurface
            (instance gl::glviewsurface :create
-                     :glcon ((send *irtviewer* :viewer :viewsurface) . gl::glcon)
+                     :offscreen offscreen
+                     :glcon (or offscreen ((send *irtviewer* :viewer :viewsurface) . gl::glcon))
                      :title (format nil "~A_view" (send self :name)) :width pwidth :height pheight)
            :title (format nil "~A_view" (send self :name)))))
    (setq img-viewer cv))
@@ -332,7 +334,7 @@
          (setq col-ent (array-entity colors))
          (fill col-ent 0.0)))
      ;; get image
-     (setq img (send sf :getglimage :depthbuf fv))
+     (setq img (send sf :getglimage :depthbuf fv :offscreen offscreen))
      (when points
        (setq img-ent (send img :entity))
        (dotimes (y height)
