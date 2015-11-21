@@ -356,6 +356,21 @@
            )))
      img
      ))
+  (:select-drawmode (mode objs)
+   (let ((glcon ((send img-viewer :viewsurface) . gl::glcon)))
+     (dolist (obj (x::draw-things objs))
+       (let ((hid (get obj :gl-hiddenline)))
+         (gl::delete-displaylist-id (get obj :GL-DISPLAYLIST-ID))
+         (setf (get obj :GL-DISPLAYLIST-ID) nil)
+         (case mode
+          (user::hid
+           (unless (assq glcon hid)
+             (setf (get obj :gl-hiddenline)
+                   (append hid (list (cons glcon t))))))
+          (t
+           (setf (get obj :gl-hiddenline) nil))
+          )))
+     ))
   )
 
 ;; utility functions
