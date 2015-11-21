@@ -840,6 +840,94 @@ pointer argv[];
   while(pc-->0) vpop();
   return (cons(ctx,rr,cons(ctx,ri,NIL)));};
 
+//
+//
+//
+#define MAXBIT 30
+#define MAXDIM 6
+void sobseq(int *n, eusfloat_t x[])
+     /*
+       When n is negative, internally initializes a set of MAXBIT direction 
+       numbers for each of MAXDIM  different Sobol' sequences. When n is 
+       positive (but .MAXDIM), returns as the vector x[1..n] the next values 
+       from n of these sequences. (n must not be changed between 
+       initializations.) 
+     */
+{
+  int j,k,l;
+  unsigned long i,im,ipp;
+  static eusfloat_t fac;
+  static unsigned long in,ix[MAXDIM+1],*iu[MAXBIT+1];
+  static unsigned long mdeg[MAXDIM+1]={0,1,2,3,3,4,4};
+  static unsigned long ip[MAXDIM+1]={0,0,1,1,2,1,4};
+  static unsigned long iv[MAXDIM*MAXBIT+1]={
+    0,1,1,1,1,1,1,3,1,3,3,1,1,5,7,7,3,3,5,15,11,5,15,13,9};
+  if (*n < 0) { // Initialize, don't return a vector.
+    for (k=1;k<=MAXDIM;k++) ix[k]=0;
+    in=0;
+    if (iv[1] != 1) return;
+    fac=1.0/(1L << MAXBIT);
+    for (j=1,k=0;j<=MAXBIT;j++,k+=MAXDIM) iu[j] = &iv[k];
+    // To allowb oth 1D and 2D addressing.
+    for (k=1;k<=MAXDIM;k++) {
+      for (j=1;j<=mdeg[k];j++) iu[j][k] <<= (MAXBIT-j);
+      //Stored values only require normalization.
+      for (j=mdeg[k]+1;j<=MAXBIT;j++) { //Use the recurrence to get other values.
+	ipp=ip[k]; 
+	i=iu[j-mdeg[k]][k];
+	i ^= (i >> mdeg[k]);
+	for (l=mdeg[k]-1;l>=1;l--) {
+	  if (ipp & 1) i ^= iu[j-l][k];
+	  ipp >>= 1;
+	}
+	iu[j][k]=i;
+      }
+    }
+  } else if (*n > MAXDIM) {
+    fprintf (stderr, "max dimension is %d!! ", MAXDIM);
+    error(E_VECINDEX);
+  } else { // Calculate the next vector in the seiquence.
+    im=in++;
+    for (j=1;j<=MAXBIT;j++) { // Find the rightmost zero bit.
+      if (!(im & 1)) break;
+      im >>= 1;
+    }
+    if (j > MAXBIT) nrerror("MAXBIT too small in sobseq");
+    im=(j-1)*MAXDIM;
+    for (k=1;k<=IMIN(*n,MAXDIM);k++) { // XOR the appropriate direction number into each component of the vector and convert to a floating number.
+      ix[k] ^= iv[im+k];
+      x[k]=ix[k]*fac;
+    }
+  }
+}
+// quasi-random (n &optional v) 
+// if n < 0 then reset values;
+pointer QUASI_RANDOM(ctx,n,argv)
+     register context *ctx;
+     int n;
+     register pointer *argv;
+{
+  int dim;
+  eusfloat_t *v;
+  register pointer r;
+
+  ckarg2(1,2);
+  dim=bigintval(argv[0]);
+  if (dim<0){
+    sobseq(&dim,v);
+    return NIL;
+  }
+  if (n==2){
+    if ( vecsize(argv[1]) != dim ) error(E_VECINDEX);
+    r = argv[1];
+  }else{
+    r = (pointer)makefvector(dim);
+  }
+  v = r->c.fvec.fv;
+  sobseq(&dim,&(v[-1]));
+  return r;
+}
+
 pointer ___irtc(ctx,n,argv, env)
 register context *ctx;
 int n;
@@ -858,6 +946,7 @@ pointer env;
   defun(ctx,"PSEUDO-INVERSE2",mod,PSEUDO_INVERSE2);
   defun(ctx,"QL-DECOMPOSE",mod,QL_DECOMPOSE);
   defun(ctx,"QR-DECOMPOSE",mod,QR_DECOMPOSE);
+  defun(ctx,"QUASI-RANDOM",mod,QUASI_RANDOM);
 
   /* irteus-version */
   extern pointer QVERSION;
