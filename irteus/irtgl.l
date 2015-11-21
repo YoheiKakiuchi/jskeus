@@ -70,6 +70,26 @@
   (defconstant GL_EDGE_FLAG_ARRAY     #x8079)
   (defconstant GL_COLOR_ARRAY         #x8076)
   (defconstant GL_INDEX_ARRAY         #x8077)
+
+  ;; for using framebuffer
+  (defforeign glGenRenderbuffers gl-lib "glGenRenderbuffers" (:integer :string) :integer)
+  (defforeign glBindRenderbuffer gl-lib "glBindRenderbuffer" () :integer)
+  (defforeign glRenderbufferStorage gl-lib "glRenderbufferStorage" () :integer)
+  (defforeign glFramebufferRenderbuffer gl-lib "glFramebufferRenderbuffer" () :integer)
+  (defforeign glGenFramebuffers gl-lib "glGenFramebuffers" (:integer :string) :integer)
+  (defforeign glBindFramebuffer gl-lib "glBindFramebuffer" () :integer)
+  (defforeign glCheckFramebufferStatus gl-lib "glCheckFramebufferStatus" () :integer)
+  (defconstant GL_DRAW_FRAMEBUFFER  #x8ca9)
+  (defconstant GL_FRAMEBUFFER       #x8d40)
+  (defconstant GL_RENDERBUFFER      #x8d41)
+  (defconstant GL_RGB8              #x8051)
+  (defconstant GL_RGBA8             #x8058)
+  (defconstant GL_DEPTH_COMPONENT16 #x81A5)
+  (defconstant GL_DEPTH_COMPONENT32 #x81A7)
+  (defconstant GL_DEPTH_COMPONENT32F #x8CAC)
+  (defconstant GL_COLOR_ATTACHMENT0 #x8ce0)
+  (defconstant GL_DEPTH_ATTACHMENT  #x8d00)
+  (defconstant GL_FRAMEBUFFER_COMPLETE #x8CD5)
   )
 
 (defun set-stereo-gl-attribute ()
@@ -179,13 +199,20 @@
 	 (width x::width)
 	 (height x::height)
 	 ((:imagebuf imgbuf) (make-string (* width height 3)))
-         (depthbuf))
+         (raw-image)
+         (offscreen) (depthbuf))
    "Get current view to a image object. It returns color-image24 object."
    (let ()
-     (send self :makecurrent)
-     (glReadBuffer GL_FRONT)
-     (glPixelStorei GL_PACK_ALIGNMENT 1)
+     (cond
+       (offscreen
+        (glReadBuffer GL_COLOR_ATTACHMENT0))
+       (t
+        (send self :makecurrent)
+        (glReadBuffer GL_FRONT)
+        (glPixelStorei GL_PACK_ALIGNMENT 1)))
      (glReadPixels x y width height GL_RGB GL_UNSIGNED_BYTE imgbuf)
+     (when raw-image (return-from :getglimage imgbuf))
+     (when offscreen (glReadBuffer GL_DEPTH_ATTACHMENT))
      #-:x86_64
      (if depthbuf (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT depthbuf))
      #+:x86_64
