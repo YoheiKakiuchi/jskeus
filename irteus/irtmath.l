@@ -32,7 +32,7 @@
 	 (vec (instantiate float-vector dim))
 	 (i 0))
      (when (null perm)
-       (warn ";; could not solve inverse-matrix~%")
+       ;;(warn ";; could not solve inverse-matrix~%")
        (return-from inverse-matrix work))
      (dotimes (i dim)
        (setq perm (lu-decompose2 mat work))
