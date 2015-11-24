@@ -199,8 +199,7 @@
 	 (width x::width)
 	 (height x::height)
 	 ((:imagebuf imgbuf) (make-string (* width height 3)))
-         (raw-image)
-         (offscreen) (depthbuf))
+         (raw-image) (offscreen) (depthbuf))
    "Get current view to a image object. It returns color-image24 object."
    (let ()
      (cond
@@ -212,14 +211,15 @@
         (glPixelStorei GL_PACK_ALIGNMENT 1)))
      (glReadPixels x y width height GL_RGB GL_UNSIGNED_BYTE imgbuf)
      (when raw-image (return-from :getglimage imgbuf))
-     (when offscreen (glReadBuffer GL_DEPTH_ATTACHMENT))
-     #-:x86_64
-     (if depthbuf (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT depthbuf))
-     #+:x86_64
      (when depthbuf
+       (if offscreen (glReadBuffer GL_DEPTH_ATTACHMENT))
+       #-:x86_64
+       (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT depthbuf)
+       #+:x86_64
        (let ((fv (user::dvector2float-bytestring depthbuf)))
-	 (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT fv)
-	 (user::float-bytestring2dvector fv depthbuf)))
+         (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT fv)
+         (user::float-bytestring2dvector fv depthbuf))
+       )
      ;; transpose
      (let ((b (make-string (* width height 3))))
        (dotimes (x width)
