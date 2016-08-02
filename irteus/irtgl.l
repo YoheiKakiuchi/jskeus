@@ -70,6 +70,26 @@
   (defconstant GL_EDGE_FLAG_ARRAY     #x8079)
   (defconstant GL_COLOR_ARRAY         #x8076)
   (defconstant GL_INDEX_ARRAY         #x8077)
+
+  ;; for using framebuffer
+  (defforeign glGenRenderbuffers gl-lib "glGenRenderbuffers" (:integer :string) :integer)
+  (defforeign glBindRenderbuffer gl-lib "glBindRenderbuffer" () :integer)
+  (defforeign glRenderbufferStorage gl-lib "glRenderbufferStorage" () :integer)
+  (defforeign glFramebufferRenderbuffer gl-lib "glFramebufferRenderbuffer" () :integer)
+  (defforeign glGenFramebuffers gl-lib "glGenFramebuffers" (:integer :string) :integer)
+  (defforeign glBindFramebuffer gl-lib "glBindFramebuffer" () :integer)
+  (defforeign glCheckFramebufferStatus gl-lib "glCheckFramebufferStatus" () :integer)
+  (defconstant GL_DRAW_FRAMEBUFFER   #x8ca9)
+  (defconstant GL_FRAMEBUFFER        #x8d40)
+  (defconstant GL_RENDERBUFFER       #x8d41)
+  (defconstant GL_RGB8               #x8051)
+  (defconstant GL_RGBA8              #x8058)
+  (defconstant GL_DEPTH_COMPONENT16  #x81A5)
+  (defconstant GL_DEPTH_COMPONENT32  #x81A7)
+  (defconstant GL_DEPTH_COMPONENT32F #x8CAC)
+  (defconstant GL_COLOR_ATTACHMENT0  #x8ce0)
+  (defconstant GL_DEPTH_ATTACHMENT   #x8d00)
+  (defconstant GL_FRAMEBUFFER_COMPLETE #x8CD5)
   )
 
 (defun set-stereo-gl-attribute ()
@@ -154,7 +174,154 @@
 	     (if depth-test (glEnable GL_DEPTH_TEST))
 	     (if lighting (glEnable GL_LIGHTING)))
   ;;
-  (:makecurrent () (gl::glxMakeCurrent x::*display* x::drawable glcon))
+  ;; using offscreen rendering
+  ;;
+  (:create-offscreen-buffer (&key (bind-depth t))
+   (let ((fbo (let ((ret (instantiate integer-vector 1)))
+               (gl::glGenFrameBuffers 1 ret)
+               (elt ret 0)))
+         render_buf depth_buf)
+
+     (setf (get self :frame-buffer) fbo)
+     (glBindFramebuffer GL_FRAMEBUFFER fbo)
+     ;;
+     (setq render_buf
+           (let ((ret (instantiate integer-vector 1)))
+             (gl::glGenRenderBuffers 1 ret)
+             (elt ret 0)))
+     (setf (get self :render-buffer) render_buf)
+     (glBindRenderbuffer GL_RENDERBUFFER render_buf)
+     ;;(glRenderbufferStorage GL_RENDERBUFFER GL_RGBA8 width height)
+     (glRenderbufferStorage GL_RENDERBUFFER GL_RGB8 x::width x::height)
+     (glFramebufferRenderbuffer GL_FRAMEBUFFER GL_COLOR_ATTACHMENT0 GL_RENDERBUFFER render_buf)
+     ;;
+     (when bind-depth
+       (setq depth_buf
+             (let ((ret (instantiate integer-vector 1)))
+               (gl::glGenRenderBuffers 1 ret)
+               (elt ret 0)))
+       (setf (get self :depth-buffer) depth_buf)
+       (glBindRenderbuffer GL_RENDERBUFFER depth_buf)
+       (glRenderbufferStorage GL_RENDERBUFFER GL_DEPTH_COMPONENT32F x::width x::height)
+       (glFramebufferRenderbuffer GL_FRAMEBUFFER GL_DEPTH_ATTACHMENT GL_RENDERBUFFER depth_buf)
+       )
+     ;;
+     (let (bstatus)
+       (setq bstatus (glCheckFramebufferStatus GL_FRAMEBUFFER))
+       (when lisp::*debug*
+         (warn "FrameBufferStatus ~A~%" bstasus)))
+     ;;
+     (glBindFramebuffer GL_FRAMEBUFFER fbo)
+     ))
+  (:bind-frame-buffer ()
+   (let ((fbo (get self :frame-buffer)))
+     (if fbo
+         (glBindFramebuffer GL_FRAMEBUFFER fbo))))
+  (:unbind-frame-buffer () (glBindFramebuffer GL_FRAMEBUFFER 0))
+  ;;; overwrite original definition on glview.l (add offscreen keyword)
+  (:create
+   (&rest args &key (x 0) (y 0) (size 256) ((:width w) size) ((:height h) size)
+          ((:glcon shared-glcon) 0) (title (string (gensym "GL")))
+          (offscreen) (depth t) &allow-other-keys)
+   ;; (format t "x y w h -> ~a ~a ~a ~a~%" x y w h)
+   ;; (if posx (setf x posx))
+   ;; (if posy (setf y posy))
+   (send self :x x)
+   (send self :y y)
+   (send self :width w)
+   (send self :height h)
+            ;;(format t "glviewsurface: create ~a ~a ~a ~a~%" x y x::width x::height)
+   (setf (get self :offscreen) offscreen)
+   (unless offscreen
+     (setq visualinfo
+           (glXChooseVisual x::*display* (x::DefaultScreen x::*display*)
+                            *attributelist*))
+     (setq glcon (glXCreateContext x::*display* visualinfo shared-glcon GL_TRUE))
+     #-:x86_64
+     (send-super* :create
+                  :depth (sys:peek (+ visualinfo 12) :long)
+                  :visual (sys:peek visualinfo :long)
+                  :title title args)
+     #+:x86_64
+     (send-super* :create
+                  :depth (sys:peek (+ visualinfo 20) :integer)
+                  :visual (sys:peek visualinfo :long)
+                  :title title args)
+
+     (glXMakeCurrent x::*display* x::drawable glcon))
+   (when offscreen
+     (send self :create-offscreen-buffer :bind-depth depth))
+   (send self :3d-mode)
+   ;; (glClearColorfv (float-vector 0.0 0.0 0.0 0.0))
+   ;; (glClear (logior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+   ;; (glColor3fv (float-vector 1.0 1.0 1.0))
+
+   ;; The default light is directional along Z
+   (setq *light0* (instance lightsource :create 0
+                            :ambient (float-vector 0.2 0.2 0.2 0.0)
+                            :diffuse (float-vector 0.5 0.5 0.5 0.0)
+                            :specular (float-vector 0.3 0.3 0.3 0.0)
+                            :position (float-vector 0.0 0.0 1.0 0.0)))
+   (setq  *light1* (instance lightsource :create 1
+                             :ambient (float-vector 0.3 0.3 0.3 1.0)
+                             :diffuse (float-vector 0.6 0.1 0.1 0.8)
+                             :specular (float-vector 0.3 0.3 0.3 1.0)
+                             :position (float-vector 5000.0 1000.0 7000.0 1.0)))
+   (setq  *light2*  (instance lightsource :create 2
+                              :ambient (float-vector 0.3 0.3 0.3 1.0)
+                              :diffuse (float-vector 0.1 0.1 0.7 0.0)
+                              :specular (float-vector 0.3 0.3 0.3 1.0)
+                              :position (float-vector -15000.0 0.0 2000.0 1.0)))
+   (glEnable GL_LIGHTING)
+   (send *light0* :opengl)
+   (send *light1* :opengl)
+   (send *light2* :opengl)
+
+   (glFrontFace GL_CW)
+   (glEnable GL_AUTO_NORMAL)
+   (glEnable GL_NORMALIZE)
+   (glDepthFunc GL_LESS)
+   (glEnable GL_DEPTH_TEST)
+   (glShadeModel GL_SMOOTH)
+   ;; (glEnable GL_COLOR_MATERIAL) ; not needed
+
+   ;; texturemap stuff...
+   (glPixelStorei GL_UNPACK_ALIGNMENT 1)
+   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_REPEAT)
+   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_REPEAT)
+
+   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_NEAREST)
+   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_NEAREST)
+   (glTexEnvi GL_TEXTURE_ENV GL_TEXTURE_ENV_MODE GL_MODULATE)
+   ;;(glTexEnvi GL_TEXTURE_ENV GL_TEXTURE_ENV_MODE GL_DECAL)
+
+   ;; initialize window contents
+   (glClear (logior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+   (unless offscreen (glxSwapbuffers x::*display* x::drawable))
+   (glClear (logior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+   (unless offscreen (glxSwapbuffers x::*display* x::drawable))
+
+   ;; Tesslation support
+
+   (setf *tess-obj* (gluNewTess))
+   (gluTessCallbackl *tess-obj* GLU_BEGIN (#'glBegin . entry) (#'glBegin . entry2))
+   ;;(gluTessCallbackl *tess-obj* GLU_VERTEX (#'glVertex3dv . entry) (#'glVertex3dv . entry2))
+   (gluTessCallbackl *tess-obj* GLU_VERTEX (#'tess_vertex_cb . entry) (#'tess_vertex_cb . entry2))
+   (gluTessCallbackl *tess-obj* GLU_END (#'glEnd . entry) (#'glEnd . entry2))
+
+                                        ; (setf window (auxxwindow))
+                                        ;(setf x::drawable (auxxwindow))
+   self)
+  ;;; overwrite original definition on glview.l (checking offscreen)
+  (:glflush ()
+   (unless (get self :offscreen)
+     (glflush) ;; ??
+     (glxSwapbuffers x::*display* x::drawable)))
+  ;;
+  (:makecurrent ()
+   (if (get self :offscreen)
+       (send self :bind-frame-buffer)
+     (gl::glxMakeCurrent x::*display* x::drawable glcon)))
   (:redraw (&rest args) (send self :flush))
   (:flush 
    ()
@@ -179,27 +346,34 @@
 	 (width x::width)
 	 (height x::height)
 	 ((:imagebuf imgbuf) (make-string (* width height 3)))
-         (depthbuf))
+         (raw-image) (depthbuf))
    "Get current view to a image object. It returns color-image24 object."
-   (let ()
-     (send self :makecurrent)
-     (glReadBuffer GL_FRONT)
-     (glPixelStorei GL_PACK_ALIGNMENT 1)
+   (let ((offscreen (get self :offscreen)))
+     (cond
+       (offscreen
+        (glReadBuffer GL_COLOR_ATTACHMENT0))
+       (t
+        (send self :makecurrent)
+        (glReadBuffer GL_FRONT)
+        (glPixelStorei GL_PACK_ALIGNMENT 1)))
      (glReadPixels x y width height GL_RGB GL_UNSIGNED_BYTE imgbuf)
-     #-:x86_64
-     (if depthbuf (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT depthbuf))
-     #+:x86_64
+     (when raw-image (return-from :getglimage imgbuf))
      (when depthbuf
+       (if offscreen (glReadBuffer GL_DEPTH_ATTACHMENT))
+       #-:x86_64
+       (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT depthbuf)
+       #+:x86_64
        (let ((fv (user::dvector2float-bytestring depthbuf)))
-	 (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT fv)
-	 (user::float-bytestring2dvector fv depthbuf)))
-     ;; transpose
+         (glReadPixels x y width height GL_DEPTH_COMPONENT GL_FLOAT fv)
+         (user::float-bytestring2dvector fv depthbuf))
+       )
+     ;; images from opengl should be flipped upside down
      (let ((b (make-string (* width height 3))))
        (dotimes (x width)
-	 (dotimes (y height)
-	   (dotimes (z 3)
-	     (setf (elt b (+ (* (- height y 1) width 3) (* x 3) z))
-		   (elt imgbuf (+ (* y width 3) (* x 3) z))))))
+         (dotimes (y height)
+           (dotimes (z 3)
+             (setf (elt b (+ (* (- height y 1) width 3) (* x 3) z))
+                   (elt imgbuf (+ (* y width 3) (* x 3) z))))))
        (instance image::color-image24 :init width height b))
      ))
   )

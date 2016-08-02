@@ -78,6 +78,7 @@
                    (:projection :newprojection
                     :view :viewpoint :view-direction :viewdistance
                     :yon :hither))
+          offscreen
           img-viewer pwidth pheight))
 (defmethod camera-model
   (:init
@@ -88,10 +89,12 @@
           (viewdistance 100.0)
           (hither 100.0)
           (yon 10000.0)
+          ((:offscreen offs) nil)
           &allow-other-keys)
    "Create camera model. b is the shape of an object"
    (let ()
      (send-super* :init b args)
+     (setq offscreen offs)
      (setq pwidth pw pheight ph)
      (setq vwing
            (instance* perspective-viewing :init
@@ -123,7 +126,8 @@
            :viewing (send self :viewing)
            :viewsurface
            (instance gl::glviewsurface :create
-                     :glcon ((send *irtviewer* :viewer :viewsurface) . gl::glcon)
+                     :offscreen offscreen
+                     :glcon (or offscreen ((send *irtviewer* :viewer :viewsurface) . gl::glcon))
                      :title (format nil "~A_view" (send self :name)) :width pwidth :height pheight)
            :title (format nil "~A_view" (send self :name)))))
    (setq img-viewer cv))
@@ -131,6 +135,9 @@
   (:height () "Returns height of the camera in pixel." pheight)
   (:viewing (&rest args) (forward-message-to vwing args))
   (:image-viewer (&rest args) (forward-message-to img-viewer args))
+  (:offscreen (&optional (off :offs))
+    ""
+   (if (eq off :offs) offscreen (setq offscreen off)))
   (:fovy () "Returns field of view in degree"
    (let ((proj (send vwing :projection)))
      (* 2 (atan2 (/ pwidth 2.0) (aref proj 0 0)))))
@@ -376,14 +383,14 @@
 
 ;; utility functions
 (defun make-camera-from-param (&key pwidth pheight fx fy cx cy (tx 0) (ty 0) parent-coords name
-                                    create-viewer)
+                                    create-viewer offscreen)
   "Create camera object from given parameters."
   (let* ((b (body+ (make-cube 40 30 30)
                    (send (make-cylinder 2 30) :rotate pi/2 :x)
                    (make-cylinder 13 25)))
 	 c (vd 1.0))
     (setq c (instance camera-model :init b :width pwidth :height pheight
-                      :viewdistance vd :name name))
+                      :viewdistance vd :name name :offscreen offscreen))
     (send (c . vwing) :screen (/ (* vd pwidth 0.5) fx) (/ (* vd pheight 0.5) fy))
     (send c :newprojection
           (make-matrix 4 4

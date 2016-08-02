@@ -32,11 +32,14 @@
 
 (defun sample-get-camera-image-2 ()
   ;; create camera and camera viewer
+  (load "/home/leus/ros/indigo_parent/src/jskeus/irteus/irtgl.l")
+  (load "/home/leus/ros/indigo_parent/src/jskeus/irteus/irtsensor.l")
   (setq *camera-model*
         (make-camera-from-param :pwidth 640 :pheight 360
                                 :fx 400 :fy 400
-                                :cx 319.5 :cy 179.5 :name "camtest"
-                                :create-viewer t))
+                                :cx 319.5 :cy 179.5 :name "camtest"))
+  (setq (*camera-model* . offscreen) t)
+  (send *camera-model* :create-viewer)
   ;; move camera
   (send *camera-model* :translate #f(0 100 0) :world)
   (send *camera-model* :rotate 0.25 :x :world)
@@ -52,7 +55,6 @@
   (send *obj3* :translate #f(0 100 250))
   (send *obj3* :set-color #f(0 1 0))
   (objects (list *obj1* *obj2* *obj3* *camera-model*))
-
 
   ;; draw objects on camera viewer
   (send *camera-model* :draw-objects (list *obj1* *obj2* *obj3*))
