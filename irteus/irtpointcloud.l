@@ -523,6 +523,11 @@
    (setq view-coords (send (pc . view-coords) :copy-worldcoords))
    (send self :worldcoords)
    self)
+  (:copy-pointcloud ()
+   "return a copied instance."
+   (let ((pc (instance pointcloud :init)))
+     (send pc :copy-from self)
+     pc))
   (:transform-points
    (coords &key (create))
    "transform points and normals with coords.\\\\
