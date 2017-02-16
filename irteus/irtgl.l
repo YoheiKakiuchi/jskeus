@@ -899,6 +899,13 @@ if flat option is true, use-flat-shader"
                     (flatten (send* self :convert-to-faces args)))))
      (send fs :transform (send self :worldcoords))
      fs))
+  (:convert-to-glbody (&key (name))
+   (let ((bbox (send self :box)))
+     (let ((cb (apply #'make-cube (coerce (send bbox :diagonal) cons))))
+       (send cb (send bbox :center))
+       (instance glbody :init :name name :replace-obj
+                 (instance body :init :faces (send cb :faces))
+                 :glvertices self))))
   (:set-offset (cds &key (create))
    "move vertices in this object using given coordinates, this method change values of vertices. coordinates's method such as :transform just change view of this object"
    (let* ((zero (float-vector 0 0 0))
@@ -1239,6 +1246,15 @@ if flat option is true, use-flat-shader"
   :slots (aglvertices)
   )
 (defmethod glbody
+  (:init (&key (name) (replace-obj) ((:glvertices glv)))
+    (if replace-obj
+        (replace-object self replace-obj)
+      (replace-object self (make-cube 10 10 10)))
+    (if name (send self :name name))
+    (setq glvertices glv)
+    (when glvertices
+      (send self :assoc glvertices))
+    self)
   (:glvertices (&rest args) (user::forward-message-to aglvertices args))
   (:draw (vwr)
    (when aglvertices
