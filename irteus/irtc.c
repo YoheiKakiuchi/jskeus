@@ -973,6 +973,7 @@ register pointer *argv;
       !((isl=islist(argv[0])) && islist(argv[1])))
     error(E_TYPEMISMATCH);
   if (isf || isi) {
+#define ckvsize(a,b) ((a->c.vec.size==b->c.vec.size)?vecsize(a):(int)error(E_VECINDEX))
     fn=ckvsize(argv[0], argv[1]);
   }else{ // isl
     if (!((fn = intval(LENGTH(ctx,1,&(argv[0])))) == intval(LENGTH(ctx,1,&(argv[1]))))) error(E_SEQINDEX);

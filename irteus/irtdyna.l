@@ -906,6 +906,8 @@
           (update t) (debug-view)
           (calc-torque-buffer-args (send self :calc-torque-buffer-args)))
     "Calculate Zero Moment Point based on Inverse Dynamics.
+     The output is expressed by the world coordinates, 
+     and depends on historical robot states of the past 3 steps. Step is incremented when this method is called.
      After solving Inverse Dynamics, ZMP is calculated from total root-link force and moment.
      necessary arguments -> av and root-coords.
      If update is t, call inverse dynamics, otherwise, just return zmp from total root-link force and moment.
@@ -1073,7 +1075,7 @@
    (send (car (send self :links)) :get :c-til))
   (:inertia-tensor ;; total inertia tensor
    (&optional (update-mass-properties t))
-   "Calculate total robot inertia tensor [g mm^2] around total robot centroid in euslisp world coordinates.
+   "Calculate total robot inertia tensor [g $mm^2$] around total robot centroid in euslisp world coordinates.
     If update-mass-properties argument is t, propagate total mass prop calculation for all links and returns total robot inertia tensor.
     Otherwise, do not calculate total mass prop, just returns pre-computed total robot inertia tensor."
    (if update-mass-properties (send self :update-mass-properties))
