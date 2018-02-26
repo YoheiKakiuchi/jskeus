@@ -141,16 +141,50 @@
       (equal (car nl) (float-vector 4.44 5.55 6.66)))
     ))
 
-(defun convert-check ()
-  (let ((*origin-p* (float-vector 500 1000 1500))
-        (*point*
-         (instance pointcloud :init :points (list *origin-p*) :point-size 10))
-        (*bcoords* (make-coords :pos #f(100 200 300) :rpy (list 0.1 0.2 0.3)))
-        (*ccoords* (make-coords :pos #f(0     0 1000) :rpy (list 0.2 -0.2 0.1)))
-        )
-    ;;;
-    ;;; convert-origin
-    ;;;
+(defun convert-to-world-check ()
+   (let* ((*origin-p* (float-vector 500 1000 1500))
+          (*point*
+           (instance pointcloud :init :points (list *origin-p*) :point-size 10))
+          (*bcoords* (make-coords :pos (float-vector 100 200 300) :rpy (list 0.1 0.2 0.3)))
+          (*base* (make-cascoords :pos (float-vector 200 -100 -150) :rpy (list 0.2 -0.2 0.1)))
+          )
+     (send *base* :assoc *point*)
+     (let ((p (send *point* :convert-to-world :create t)))
+       (assert (eps-v= (car (send *point* :point-list)) *origin-p* 1e-8)) ;; original does not move
+       (assert (eps-v= (car (send p :point-list)) *origin-p* 1e-8))
+       )
+
+     (send *base* :transform *bcoords*)
+     (let ((p (send *point* :convert-to-world :create t)))
+       (assert (eps-v= (car (send *point* :point-list)) *origin-p* 1e-8))  ;; original does not move
+       (assert (eps-v=
+                (car (send p :point-list))
+                (send (send *point* :worldcoords) :transform-vector (car (send *point* :point-list)))
+                1e-8))
+       )
+     (let ((pt (send (send *point* :worldcoords) :transform-vector (car (send *point* :point-list)))))
+       (send *point* :convert-to-world :create nil)
+       (assert (eps-v=
+                (car (send *point* :point-list))
+                (send (send *point* :worldcoords) :transform-vector (car (send *point* :point-list)))
+                1e-8))
+       (assert (eps-v=
+                (car (send *point* :point-list)) ;; original moved
+                pt
+                1e-8))
+       (assert (eps-v= (send *point* :worldpos) (float-vector 0 0 0) 1e-8))
+       (assert (eps-v= (array-entity (send *point* :worldrot))
+                       (float-vector 1 0 0 0 1 0 0 0 1) 1e-8))
+       )
+     ))
+
+(defun convert-origin-check ()
+  (let* ((*origin-p* (float-vector 500 1000 1500))
+         (*point*
+          (instance pointcloud :init :points (list *origin-p*) :point-size 10))
+         (*bcoords* (make-coords :pos #f(100 200 300) :rpy (list 0.1 0.2 0.3)))
+         (*ccoords* (make-coords :pos #f(0     0 1000) :rpy (list 0.2 -0.2 0.1)))
+         )
     (send *point* :convert-origin *bcoords*)
     (assert
      (eps-v=
@@ -209,12 +243,11 @@
       )
     ))
 #|
-(send pt :convert-to-world)
 (send pt :transform-points cds :create t)
 (send pt :append (list ...))
 |#
 
-(deftest test-pointcloud
+(deftest test-pointcloud-create
   ;;
   (points-size-check #'(lambda () (make-matrix 10 3)))
   ;;
@@ -226,6 +259,9 @@
    (make-random-pointcloud :num 100 :with-normal t)
    (make-random-pointcloud :num 100 :with-color t :with-normal t)
    :size 100)
+  )
+
+(deftest test-pointcloud-filter
   ;;
   (filter-check (make-random-pointcloud :num 40)
                 :keyword :key :func #'(lambda (p) (> (elt p 0) 0)))
@@ -241,9 +277,13 @@
                 :keyword :pcnkey :func #'(lambda (p c n) (> (elt p 0) 0)))
   ;;
   (filter-check-create)
+  )
+
+(deftest test-pointcloud-convert
   ;;
-  (convert-check)
-  (print 'done)
+  (convert-to-world-check)
+  ;;
+  (convert-origin-check)
   )
 
 (run-all-tests)
