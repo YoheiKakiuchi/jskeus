@@ -241,6 +241,8 @@
                 :keyword :pcnkey :func #'(lambda (p c n) (> (elt p 0) 0)))
   ;;
   (filter-check-create)
+  ;;
+  (convert-check)
   (print 'done)
   )
 
