@@ -9,7 +9,7 @@
 ;; redefine
 (defun eps-v= (v1 v2 &optional (eps *epsilon*))
   (let ((dist (distance v1 v2)))
-    (warn ";;--;; eps-v= ~A ~A, dist = ~F, eps = ~F~%"
+    (warn ";;--;; eps-v= ~A ~A, dist = ~12,12F, eps = ~12,12F~%"
           v1 v2 dist eps))
   (eps= (distance v1 v2) 0.0 eps))
 
