@@ -156,13 +156,19 @@
           )
      (send *base* :assoc *point*)
      (let ((p (send *point* :convert-to-world :create t)))
+       (warn ";; test-pointcloud__1 ~A ~A~%" (car (send *point* :point-list)) *origin-p*)
        (assert (eps-v= (car (send *point* :point-list)) *origin-p* *temp-eps*)) ;; original does not move
+       (warn ";; test-pointcloud__2 ~A ~A~%" (car (send p :point-list)) *origin-p*)
        (assert (eps-v= (car (send p :point-list)) *origin-p* *temp-eps*))
        )
 
      (send *base* :transform *bcoords*)
      (let ((p (send *point* :convert-to-world :create t)))
+       (warn ";; test-pointcloud__3 ~A ~A~%" (car (send *point* :point-list)) *origin-p*)
        (assert (eps-v= (car (send *point* :point-list)) *origin-p* *temp-eps*))  ;; original does not move
+       (warn ";; test-pointcloud__4 ~A ~A~%"
+             (car (send p :point-list))
+             (send (send *point* :worldcoords) :transform-vector (car (send *point* :point-list))))
        (assert (eps-v=
                 (car (send p :point-list))
                 (send (send *point* :worldcoords) :transform-vector (car (send *point* :point-list)))
@@ -170,15 +176,26 @@
        )
      (let ((pt (send (send *point* :worldcoords) :transform-vector (car (send *point* :point-list)))))
        (send *point* :convert-to-world :create nil)
+       (warn ";; test-pointcloud__5 ~A ~A~%"
+             (car (send *point* :point-list))
+             (send (send *point* :worldcoords) :transform-vector (car (send *point* :point-list))))
        (assert (eps-v=
                 (car (send *point* :point-list))
                 (send (send *point* :worldcoords) :transform-vector (car (send *point* :point-list)))
                 *temp-eps*))
+       (warn ";; test-pointcloud__6 ~A ~A~%"
+             (car (send *point* :point-list)) ;; original moved
+             pt)
        (assert (eps-v=
                 (car (send *point* :point-list)) ;; original moved
                 pt
                 *temp-eps*))
+       (warn ";; test-pointcloud__7 ~A ~A~%"
+             (send *point* :worldpos) (float-vector 0 0 0))
        (assert (eps-v= (send *point* :worldpos) (float-vector 0 0 0) *temp-eps*))
+       (warn ";; test-pointcloud__8 ~A ~A~%"
+             (array-entity (send *point* :worldrot))
+             (float-vector 1 0 0 0 1 0 0 0 1))
        (assert (eps-v= (array-entity (send *point* :worldrot))
                        (float-vector 1 0 0 0 1 0 0 0 1) *temp-eps*))
        )
