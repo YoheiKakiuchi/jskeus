@@ -6,6 +6,13 @@
 #+(or :x86_64 :aarch64)
 (setq *temp-eps* 1e-8)
 
+;; redefine
+(defun eps-v= (v1 v2 &optional (eps *epsilon*))
+  (let ((dist (distance v1 v2)))
+    (warn ";;--;; eps-v= ~A ~A, dist = ~F, eps = ~F~%"
+          v1 v2 dist eps))
+  (eps= (distance v1 v2) 0.0 eps))
+
 (init-unit-test)
 
 (defun points-size-check (make-element-func &key (size 10))
