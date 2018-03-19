@@ -1,17 +1,10 @@
 (require :unittest "lib/llib/unittest.l")
 
 #-(or :x86_64 :aarch64)
-(setq *temp-eps* 1e-5)
+(setq *temp-eps* 1e-2) ;; 5 significant figure of 1000mm
 
 #+(or :x86_64 :aarch64)
-(setq *temp-eps* 1e-8)
-
-;; redefine
-(defun eps-v= (v1 v2 &optional (eps *epsilon*))
-  (let ((dist (distance v1 v2)))
-    (warn ";;--;; eps-v= ~A ~A, dist = ~12,12F, eps = ~12,12F~%"
-          v1 v2 dist eps))
-  (eps= (distance v1 v2) 0.0 eps))
+(setq *temp-eps* 1e-9) ;; 12 significant figure of 1000mm
 
 (init-unit-test)
 
