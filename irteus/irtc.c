@@ -1034,12 +1034,17 @@ register pointer *argv;
   // | rot1[0] rot1[1] rot1[2] |   | pos2[0] |
   // | rot1[3] rot1[4] rot1[5] | x | pos2[1] |
   // | rot1[6] rot1[7] rot1[8] |   | pos2[2] |
-  pos3[0] = pos1[0] +
+  register eusfloat_t tmp_p[3];
+  tmp_p[0] = pos1[0] +
     (pos2[0] * rot1[0]) + (pos2[1] * rot1[1]) + (pos2[2] * rot1[2]);
-  pos3[1] = pos1[1] +
+  tmp_p[1] = pos1[1] +
     (pos2[0] * rot1[3]) + (pos2[1] * rot1[4]) + (pos2[2] * rot1[5]);
-  pos3[2] = pos1[2] +
+  tmp_p[2] = pos1[2] +
     (pos2[0] * rot1[6]) + (pos2[1] * rot1[7]) + (pos2[2] * rot1[8]);
+
+  pos3[0] = tmp_p[0];
+  pos3[1] = tmp_p[1];
+  pos3[2] = tmp_p[2];
 
   // rot3 = rot1 * rot2
   register eusfloat_t tmp[9];

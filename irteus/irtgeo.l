@@ -267,6 +267,13 @@
    (coordinates-rot c3)
    (coordinates-pos c3)
    )
+  (pprint (list
+           (coordinates-rot c1)
+           (coordinates-pos c1)
+           (coordinates-rot c2)
+           (coordinates-pos c2)
+           (coordinates-rot c3)
+           (coordinates-pos c3)))
   c3)
 
 ;; END:: Redefine for rotm3*
