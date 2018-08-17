@@ -1134,10 +1134,10 @@
      (unless fik (setq fik (make-matrix dim fik-len)))
      ;;
      (terpri)
-     (send *tm* :start)
+     ;;(send *tm* :start)
      (setq union-link-list (send self :calc-union-link-list link-list)) ;; const?
      (setq jdim (send self :calc-target-joint-dimension union-link-list));; const?
-     (print (* 1000 (send *tm* :stop))) ;; 18 us
+     ;;(print (* 1000 (send *tm* :stop))) ;; 18 us
      (if (atom (car link-list)) (setq link-list (list link-list)))
      (if (atom move-target) (setq move-target (list move-target)))
      (if (atom transform-coords) (setq transform-coords (list transform-coords)))
@@ -1150,7 +1150,7 @@
        (setq ul (elt union-link-list i) row 0)
        (dotimes (m (length link-list))
          (terpri)
-         (send *tm* :start)
+         ;;(send *tm* :start)
          (let ((link-list (elt link-list m))
                (move-target (elt move-target m))
                (transform-coords (elt transform-coords m))
@@ -1160,7 +1160,7 @@
              (setq len (length link-list)
                    l (position ul link-list :test #'equal)
                    j (send ul :joint))
-             (print (* 1000 (send *tm* :stop))) ;; 5 us
+             ;;(print (* 1000 (send *tm* :stop))) ;; 5 us
              (labels ((find-parent
                        (pl ll)
                        (if (or (find pl ll) (null pl))
@@ -1176,7 +1176,7 @@
                                      (find-parent (send move-target :parent) link-list)))))
                       (setq child-reverse t))
                      (t (setq child-reverse nil))))
-             (print (* 1000 (send *tm* :stop))) ;; 10 us
+             ;;(print (* 1000 (send *tm* :stop))) ;; 10 us
              (let* ((paxis (case (j . axis)
                              (:x #f(1 0 0)) (:y #f(0 1 0)) (:z #f(0 0 1))
                              (:xx #f(1 0 0)) (:yy #f(0 1 0)) (:zz #f(0 0 1))
@@ -1191,11 +1191,11 @@
                      fik row col j paxis child-link world-default-coords child-reverse
                      move-target transform-coords rotation-axis translation-axis
                      tmp-v0 tmp-v1 tmp-v2 tmp-v3 tmp-v3a tmp-v3b tmp-m33)
-               (print (* 1000 (send *tm* :stop))) ;; 30 us
+               ;;(print (* 1000 (send *tm* :stop))) ;; 30 us
                )) ;; when
            (incf row (send self :calc-target-axis-dimension
                            rotation-axis translation-axis)) ;; 10 us
-           (print (* 1000 (send *tm* :stop)))
+           ;;(print (* 1000 (send *tm* :stop)))
            )) ;; dotimes
        ) ;; do
      fik))
