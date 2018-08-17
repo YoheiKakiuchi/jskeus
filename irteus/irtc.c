@@ -389,7 +389,11 @@ int matrix2quaternion(eusfloat_t *c, eusfloat_t *q){
     q[2] = (c[1*3+2] + c[2*3+1]) / (4 * q[3]);
   } else {
     fprintf(stderr, ";; matrix2quaternion q02=%f,q12=%f,q22=%f,q32=%f\n",
-	    q02,q12,q22,q32);
+            q02,q12,q22,q32);
+    fprintf(stderr, ";;  %f %f %f\n", c[0*3+0],c[0*3+1],c[0*3+2]);
+    fprintf(stderr, ";;  %f %f %f\n", c[1*3+0],c[1*3+1],c[1*3+2]);
+    fprintf(stderr, ";;  %f %f %f\n", c[2*3+0],c[2*3+1],c[2*3+2]);
+
     error(E_USER,(pointer)";; matrix2quaternion\n");
   }
 }
@@ -1009,6 +1013,61 @@ register pointer *argv;
   return(makeflt(res));
 }
 
+pointer IRTC_MULTIPLE_TRANSFORM(ctx, n, argv)
+/*
+ */
+register context *ctx;
+int n;
+register pointer *argv;
+{
+  eusfloat_t *rot1, *rot2, *rot3;
+  eusfloat_t *pos1, *pos2, *pos3;
+
+  ckarg(6);
+  rot1 = argv[0]->c.ary.entity->c.fvec.fv;
+  pos1 = argv[1]->c.fvec.fv;
+  rot2 = argv[2]->c.ary.entity->c.fvec.fv;
+  pos2 = argv[3]->c.fvec.fv;
+  rot3 = argv[4]->c.ary.entity->c.fvec.fv;
+  pos3 = argv[5]->c.fvec.fv;
+  // pos3 = rot1 * pos2 + pos1
+  // | rot1[0] rot1[1] rot1[2] |   | pos2[0] |
+  // | rot1[3] rot1[4] rot1[5] | x | pos2[1] |
+  // | rot1[6] rot1[7] rot1[8] |   | pos2[2] |
+  pos3[0] = pos1[0] +
+    (pos2[0] * rot1[0]) + (pos2[1] * rot1[1]) + (pos2[2] * rot1[2]);
+  pos3[1] = pos1[1] +
+    (pos2[0] * rot1[3]) + (pos2[1] * rot1[4]) + (pos2[2] * rot1[5]);
+  pos3[2] = pos1[2] +
+    (pos2[0] * rot1[6]) + (pos2[1] * rot1[7]) + (pos2[2] * rot1[8]);
+
+  // rot3 = rot1 * rot2
+  register eusfloat_t tmp[9];
+  tmp[0] = (rot1[0] * rot2[0]) + (rot1[1] * rot2[3]) + (rot1[2] * rot2[6]);
+  tmp[1] = (rot1[0] * rot2[1]) + (rot1[1] * rot2[4]) + (rot1[2] * rot2[7]);
+  tmp[2] = (rot1[0] * rot2[2]) + (rot1[1] * rot2[5]) + (rot1[2] * rot2[8]);
+
+  tmp[3] = (rot1[3] * rot2[0]) + (rot1[4] * rot2[3]) + (rot1[5] * rot2[6]);
+  tmp[4] = (rot1[3] * rot2[1]) + (rot1[4] * rot2[4]) + (rot1[5] * rot2[7]);
+  tmp[5] = (rot1[3] * rot2[2]) + (rot1[4] * rot2[5]) + (rot1[5] * rot2[8]);
+
+  tmp[6] = (rot1[6] * rot2[0]) + (rot1[7] * rot2[3]) + (rot1[8] * rot2[6]);
+  tmp[7] = (rot1[6] * rot2[1]) + (rot1[7] * rot2[4]) + (rot1[8] * rot2[7]);
+  tmp[8] = (rot1[6] * rot2[2]) + (rot1[7] * rot2[5]) + (rot1[8] * rot2[8]);
+
+  rot3[0] = tmp[0];
+  rot3[1] = tmp[1];
+  rot3[2] = tmp[2];
+  rot3[3] = tmp[3];
+  rot3[4] = tmp[4];
+  rot3[5] = tmp[5];
+  rot3[6] = tmp[6];
+  rot3[7] = tmp[7];
+  rot3[8] = tmp[8];
+
+  return T;
+}
+
 #include "defun.h" // redefine defun for update defun() API
 pointer ___irtc(ctx,n,argv, env)
 register context *ctx;
@@ -1017,6 +1076,7 @@ pointer argv[];
 pointer env;
 {
   pointer mod=argv[0];
+  defun(ctx,"MULTIPLE-TRANSFORMS",mod,IRTC_MULTIPLE_TRANSFORM,NULL);
   defun(ctx,"ROTM3*",mod,MATTIMES3,NULL);
   defun(ctx,"M+",mod,MATPLUS,NULL);
   defun(ctx,"M-",mod,MATMINUS,NULL);

@@ -235,6 +235,7 @@
 	    (send self :newcoords cc))))
   )
 
+#|
 (defun transform-coords (c1 c2 &optional
 			    (c3 (let ((dim (send c1 :dimension)))
 				  (instance coordinates 
@@ -249,7 +250,23 @@
 	(coordinates-pos c3)))
   (user::rotm3* (coordinates-rot c1) (coordinates-rot c2) (coordinates-rot c3))
   c3)
+|#
+(putprop 'USER::multiple-transforms "IRTC_MULTIPLE_TRANSFORM"
+         'compiler::builtin-function-entry)
 
+(defun transform-coords (c1 c2 &optional
+                            (c3 (let ((dim (send c1 :dimension)))
+                                  (instance coordinates
+                                            :newcoords (unit-matrix dim)
+                                            (instantiate float-vector dim)))))
+  (user::multiple-transforms
+   (coordinates-rot c1)
+   (coordinates-pos c1)
+   (coordinates-rot c2)
+   (coordinates-pos c2)
+   (coordinates-rot c3)
+   (coordinates-pos c3)
+   ))
 
 ;; END:: Redefine for rotm3*
 
