@@ -1075,10 +1075,12 @@
        (warn "k     :~7,3f (manipulability:~7,3f, gain:~7,3f, limit:~7,3f, len:~d)~%" k m mg ml (cadr (array-dimensions jacobi))))
 
      ;; calc weighted SR-inverse
+     ;;(send *tm* :start)
      (setq jacobi# (sr-inverse jacobi k weight 
 			       ret wmat tmat umat umat2 mat-tmp
 			       mat-tmp-rc tmp-mrr tmp-mrr2
 			       ))
+     ;;(print (* 1000 (send *tm* :stop)))
      jacobi#))
   (:calc-gradH-from-link-list
    (link-list &optional (res (instantiate float-vector (length link-list))))
@@ -1127,23 +1129,28 @@
     (send-all (send *robot* :calc-union-link-list *arms-link-list*) :joint)
    "
    (let* (len ul row
-	  child-reverse union-link-list
-	  j jdim)
+              child-reverse union-link-list
+              j jdim)
      (unless fik (setq fik (make-matrix dim fik-len)))
-;;
-     (setq union-link-list (send self :calc-union-link-list link-list))
-     (setq jdim (send self :calc-target-joint-dimension union-link-list))
+     ;;
+     (terpri)
+     (send *tm* :start)
+     (setq union-link-list (send self :calc-union-link-list link-list)) ;; const?
+     (setq jdim (send self :calc-target-joint-dimension union-link-list));; const?
+     (print (* 1000 (send *tm* :stop))) ;; 18 us
      (if (atom (car link-list)) (setq link-list (list link-list)))
      (if (atom move-target) (setq move-target (list move-target)))
      (if (atom transform-coords) (setq transform-coords (list transform-coords)))
      (if (atom rotation-axis) (setq rotation-axis (list rotation-axis)))
      (if (atom translation-axis) (setq translation-axis (list translation-axis)))
-;;
+     ;;
      (do ((col col-offset (+ col (send j :joint-dof)))
-	  (i 0 (1+ i)))
+          (i 0 (1+ i)))
          ((>= col (+ col-offset jdim)))
        (setq ul (elt union-link-list i) row 0)
        (dotimes (m (length link-list))
+         (terpri)
+         (send *tm* :start)
          (let ((link-list (elt link-list m))
                (move-target (elt move-target m))
                (transform-coords (elt transform-coords m))
@@ -1153,6 +1160,7 @@
              (setq len (length link-list)
                    l (position ul link-list :test #'equal)
                    j (send ul :joint))
+             (print (* 1000 (send *tm* :stop))) ;; 5 us
              (labels ((find-parent
                        (pl ll)
                        (if (or (find pl ll) (null pl))
@@ -1168,23 +1176,26 @@
                                      (find-parent (send move-target :parent) link-list)))))
                       (setq child-reverse t))
                      (t (setq child-reverse nil))))
-	     (let* ((paxis (case (j . axis)
-			     (:x #f(1 0 0)) (:y #f(0 1 0)) (:z #f(0 0 1))
-			     (:xx #f(1 0 0)) (:yy #f(0 1 0)) (:zz #f(0 0 1))
-			     (:-x #f(-1 0 0)) (:-y #f(0 -1 0)) (:-z #f(0 0 -1))
-			     (t (j . axis))))
-		    (child-link (send j :child-link))
-		    (parent-link (send j :parent-link))
-		    (default-coords (j . default-coords))
-		    (world-default-coords (send (send parent-link :copy-worldcoords)
-						:transform default-coords)))
-	       (send j :calc-jacobian
-		     fik row col j paxis child-link world-default-coords child-reverse
-		     move-target transform-coords rotation-axis translation-axis
-		     tmp-v0 tmp-v1 tmp-v2 tmp-v3 tmp-v3a tmp-v3b tmp-m33)
-	       )) ;; when
+             (print (* 1000 (send *tm* :stop))) ;; 10 us
+             (let* ((paxis (case (j . axis)
+                             (:x #f(1 0 0)) (:y #f(0 1 0)) (:z #f(0 0 1))
+                             (:xx #f(1 0 0)) (:yy #f(0 1 0)) (:zz #f(0 0 1))
+                             (:-x #f(-1 0 0)) (:-y #f(0 -1 0)) (:-z #f(0 0 -1))
+                             (t (j . axis))))
+                    (child-link (send j :child-link))
+                    (parent-link (send j :parent-link))
+                    (default-coords (j . default-coords))
+                    (world-default-coords (send (send parent-link :copy-worldcoords)
+                                                :transform default-coords)))
+               (send j :calc-jacobian
+                     fik row col j paxis child-link world-default-coords child-reverse
+                     move-target transform-coords rotation-axis translation-axis
+                     tmp-v0 tmp-v1 tmp-v2 tmp-v3 tmp-v3a tmp-v3b tmp-m33)
+               (print (* 1000 (send *tm* :stop))) ;; 30 us
+               )) ;; when
            (incf row (send self :calc-target-axis-dimension
-			   rotation-axis translation-axis))
+                           rotation-axis translation-axis)) ;; 10 us
+           (print (* 1000 (send *tm* :stop)))
            )) ;; dotimes
        ) ;; do
      fik))
@@ -2057,14 +2068,16 @@
        (if (memq :tmp-dim ik-args)
            (setq tmp-dim (cadr (memq :tmp-dim ik-args)))
          (setq tmp-dim (instantiate float-vector (send self :calc-target-axis-dimension rotation-axis translation-axis))))
-       
        (if (functionp jacobi) (setq jacobi (funcall jacobi link-list move-target translation-axis rotation-axis)))
        (unless jacobi
+         ;;(send *tm* :start)
          (setq jacobi (send* self :calc-jacobian-from-link-list link-list
                              :translation-axis translation-axis
                              :rotation-axis rotation-axis
                              :move-target move-target
-                             method-args)))
+                             method-args))
+         ;;(print (* 1000 (send *tm* :stop)))
+         )
        (when (and debug-view (not (memq :no-message debug-view)))
          (warn "loop: ~3d~%" loop)
          (warn "union-link-list: ~A~%" (send-all union-link-list :name))
