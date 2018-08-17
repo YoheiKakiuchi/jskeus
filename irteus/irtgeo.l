@@ -266,7 +266,8 @@
    (coordinates-pos c2)
    (coordinates-rot c3)
    (coordinates-pos c3)
-   ))
+   )
+  c3)
 
 ;; END:: Redefine for rotm3*
 

@@ -46,9 +46,9 @@ ARCH=Linux
 MACHINE=x86_64
 THREAD= -DTHREADED -DPTHREAD
 
-CFLAGS=-O2 -D$(MACHINE) -D$(ARCH) -D_REENTRANT -DGCC -I$(EUSDIR)/include $(THREAD)  -DSVNVERSION=$(SVNVERSION)
+CFLAGS=-march=native -O2 -D$(MACHINE) -D$(ARCH) -D_REENTRANT -DGCC -I$(EUSDIR)/include $(THREAD)  -DSVNVERSION=$(SVNVERSION)
 CXXFLAGS=$(CFLAGS)
 
-CFLAGS+= -g -falign-functions=8 -fPIC
+CFLAGS+= -g -falign-functions=8 -fPIC -march=native
 CXXFLAGS+=-g -falign-functions=8 -fPIC
 
