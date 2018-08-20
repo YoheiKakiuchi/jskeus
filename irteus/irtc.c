@@ -1030,6 +1030,25 @@ register pointer *argv;
   pos2 = argv[3]->c.fvec.fv;
   rot3 = argv[4]->c.ary.entity->c.fvec.fv;
   pos3 = argv[5]->c.fvec.fv;
+
+  {
+    double aa = 0.0;
+    aa = (rot1[0] * rot1[0]) + (rot1[3] * rot1[3]) + (rot1[6] * rot1[6]);
+    double bb = 0.0;
+    bb = (rot1[1] * rot1[1]) + (rot1[4] * rot1[4]) + (rot1[7] * rot1[7]);
+    double cc= 0.0;
+    cc = (rot1[2] * rot1[2]) + (rot1[5] * rot1[5]) + (rot1[8] * rot1[8]);
+    printf("rot1: %f %f %f\n", aa - 1.0, bb - 1.0, cc - 1.0);
+  }
+  {
+    double aa = 0.0;
+    aa = (rot2[0] * rot2[0]) + (rot2[3] * rot2[3]) + (rot2[6] * rot2[6]);
+    double bb = 0.0;
+    bb = (rot2[1] * rot2[1]) + (rot2[4] * rot2[4]) + (rot2[7] * rot2[7]);
+    double cc= 0.0;
+    cc = (rot2[2] * rot2[2]) + (rot2[5] * rot2[5]) + (rot2[8] * rot2[8]);
+    printf("rot2: %f %f %f\n", aa - 1.0, bb - 1.0, cc - 1.0);
+  }
   // pos3 = rot1 * pos2 + pos1
   // | rot1[0] rot1[1] rot1[2] |   | pos2[0] |
   // | rot1[3] rot1[4] rot1[5] | x | pos2[1] |
@@ -1060,15 +1079,38 @@ register pointer *argv;
   tmp[7] = (rot1[6] * rot2[1]) + (rot1[7] * rot2[4]) + (rot1[8] * rot2[7]);
   tmp[8] = (rot1[6] * rot2[2]) + (rot1[7] * rot2[5]) + (rot1[8] * rot2[8]);
 
-  rot3[0] = tmp[0];
-  rot3[1] = tmp[1];
-  rot3[2] = tmp[2];
-  rot3[3] = tmp[3];
-  rot3[4] = tmp[4];
-  rot3[5] = tmp[5];
-  rot3[6] = tmp[6];
-  rot3[7] = tmp[7];
-  rot3[8] = tmp[8];
+  {
+    double nm = 0.0;
+    nm += (tmp[0] * tmp[0]);
+    nm += (tmp[1] * tmp[1]);
+    nm += (tmp[2] * tmp[2]);
+    nm = sqrt(nm);
+    rot3[0] = tmp[0]/nm;
+    rot3[1] = tmp[1]/nm;
+    rot3[2] = tmp[2]/nm;
+  }
+
+  {
+    double nm = 0.0;
+    nm += (tmp[3] * tmp[3]);
+    nm += (tmp[4] * tmp[4]);
+    nm += (tmp[5] * tmp[5]);
+    nm = sqrt(nm);
+    rot3[3] = tmp[3]/nm;
+    rot3[4] = tmp[4]/nm;
+    rot3[5] = tmp[5]/nm;
+  }
+
+  {
+    double nm = 0.0;
+    nm += (tmp[6] * tmp[6]);
+    nm += (tmp[7] * tmp[7]);
+    nm += (tmp[8] * tmp[8]);
+    nm = sqrt(nm);
+    rot3[6] = tmp[6]/nm;
+    rot3[7] = tmp[7]/nm;
+    rot3[8] = tmp[8]/nm;
+  }
 
   return T;
 }
